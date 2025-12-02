@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Le Gratteux du SRP</title>
+    <link href="https://fonts.googleapis.com/css2?family=Mountains+of+Christmas:wght@700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: repeating-linear-gradient(
+                45deg,
+                #c41e3a 0,
+                #c41e3a 1.5vh,
+                #fff 1.5vh,
+                #fff 2.5vh,
+                #0f7d3e 2.5vh,
+                #0f7d3e 4.5vh,
+                #c41e3a 4.5vh,
+                #c41e3a 5.5vh,
+                #fff 5.5vh,
+                #fff 6vh,
+                #0f7d3e 6vh,
+                #0f7d3e 9vh
+            );
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1vh 2vw;
+        }
+
+        h1 {
+            font-family: 'Mountains of Christmas', cursive;
+            text-align: center;
+            font-size: 7vh;
+            margin-bottom: 1vh;
+            letter-spacing: 0.15em;
+            transform: rotate(-3deg);
+            
+            /* Dégradé jaune/orange vif pour meilleure lisibilité */
+            color: #ffd700;
+            background: linear-gradient(180deg, #ffed4e 0%, #ffd700 50%, #ff8c00 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            
+            /* Contour rouge avec filter drop-shadow pour ne pas masquer le dégradé */
+            filter: 
+                drop-shadow(-0.2vh -0.2vh 0 #c41e3a)
+                drop-shadow(0.2vh -0.2vh 0 #c41e3a)
+                drop-shadow(-0.2vh 0.2vh 0 #c41e3a)
+                drop-shadow(0.2vh 0.2vh 0 #c41e3a)
+                drop-shadow(0 0 1vh rgba(196, 30, 58, 0.6));
+        }
+
+        .container {
+            width: 90vw;
+            max-width: 1200px;
+            height: calc(100vh - 10vh);
+            display: grid;
+            grid-template-columns: 48% 48%;
+            grid-template-rows: repeat(5, 1fr) 1fr;
+            gap: 2%;
+            row-gap: 1vh;
+        }
+
+        /* Cases spéciales de la dernière rangée avec proportions différentes */
+        .scratch-card.bonus-wide {
+            grid-column: 1 / 2;
+            width: 134%;
+        }
+
+        .scratch-card.nul-narrow {
+            grid-column: 2 / 3;
+            width: 66%;
+            justify-self: end;
+        }
+
+        .scratch-card {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: #FFFFFF;
+            border-radius: 1vh;
+            box-shadow: 0 0.5vh 1vh rgba(0,0,0,0.4);
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .card-content {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3%;
+            cursor: pointer;
+        }
+
+        .card-content img {
+            max-width: 60%;
+            max-height: 60%;
+            object-fit: contain;
+            margin-bottom: 2%;
+        }
+
+        .card-title {
+            color: #c41e3a;
+            font-size: 1.5vh;
+            font-weight: bold;
+            text-align: center;
+            padding: 0 5%;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+            z-index: 5;
+        }
+
+        .special-card {
+            background: linear-gradient(135deg, #0f7d3e 0%, #2d9e5f 50%, #0f7d3e 100%);
+        }
+		
+		.bonus-card-title {
+			color: #FFFFFF;
+			font-size: 1.5vh;
+			font-weight: bold;
+			text-align: center;
+			padding: 0 5%;
+			border-radius: 0.5vh;
+			/* Ajoute ton style ici */
+		}
+
+        .nul-card {
+            background: linear-gradient(135deg, #1a1a1a 0%, #000 50%, #1a1a1a 100%);
+            border: 0.3vh solid #c41e3a;
+            cursor: pointer;
+        }
+
+        .nul-card .card-content {
+            color: gold;
+			text-align: center;
+            font-size: 2vh;
+            font-weight: bold;
+            text-shadow: 0.3vh 0.3vh 0.6vh rgba(0,0,0,0.9);
+            padding: 5%;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 4vh;
+            }
+            .card-title {
+                font-size: 1.2vh;
+            }
+            .nul-card .card-content {
+                font-size: 1.8vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>GRATTEUX DU SRP</h1>
+    <div class="container" id="cardContainer"></div>
+
+    <script>
+        // ========== CONFIGURATION FACILE À MODIFIER ==========
+        
+        const cardsData = [
+            { 
+                title: 'Comment Google Ai studio peut vous aider dans votre travail',
+                image: 'https://logosenvector.com/logo/img/logo-google-ai-studio-38207.png', 
+                link: 'https://www.youtube.com/watch?v=otnkP1ICutw' 
+            },
+            { 
+                title: 'Créer des schémas scientifiques facilement',
+                image: 'https://lirp.cdn-website.com/8ca1f11c/dms3rep/multi/opt/SSP_Resources_220916+Scientific+Workshops_Logo_BioRender-1920w.png', 
+                link: 'https://latelierduformateur.fr/biorender-creer-des-schemas-scientifiques-facilement/' 
+            },
+            { 
+                title: 'Explorez le monde de l\’IA grâce à quatre parcours concis',
+                image: 'https://d30mzt1bxg5llt.cloudfront.net/public/uploads/images/_signatoryLogo/Logo_HEC_Montreal_RGB_541.jpg', 
+                link: 'https://ia.hec.ca/' 
+            },
+            { 
+                title: 'Collection de prompts IA en éducation',
+                image: 'https://cdn-icons-png.flaticon.com/512/2920/2920349.png', 
+                link: 'https://www.pearltrees.com/idremeau/prompts-ia-en-education/id66807213' 
+            },
+            { 
+                title: 'Idées d\'activités de pédagogie active',
+                image: 'https://cdn-icons-png.flaticon.com/512/3976/3976625.png', 
+                link: 'https://view.genially.com/624573fdc7c469001111a435/presentation-idees-dactivites-de-pedagogie-active' 
+            },
+            { 
+                title: 'Comment utiliser Clipchamp: montage vidéo gratuit',
+                image: 'https://brandlogo.org/wp-content/uploads/2025/05/Clipchamp-Icon-2022.png.webp', 
+                link: 'https://www.youtube.com/watch?v=MdW8yftupyA' 
+            },
+            { 
+                title: 'Comment utiliser Microsoft Loop',
+                image: 'https://logosenvector.com/logo/img/logo-microsoft-365-38092.png', 
+                link: 'https://www.youtube.com/watch?v=7DY5w0C8thQ' 
+            },
+            { 
+                title: 'Une alternative gratuite à Photoshop',
+                image: 'https://content-management-files.canva.com/a8fd5928-b313-4e19-8d1c-634f4b72c7e5/affinity_by_canva_black.png', 
+                link: 'https://www.youtube.com/watch?v=2MLu7bF8JAE' 
+            },
+            { 
+                title: 'Comprendre l\'éducation inclusive en jouant aux quilles',
+                image: 'https://oresquebec.ca/wp-content/themes/ores/dist/assets/images/footer-logo.svg', 
+                link: 'https://www.youtube.com/watch?v=jPg7KeKSJfU' 
+            },
+            { 
+                title: 'Les Outils d\'Animation',
+                image: 'https://communagir.org/media/2941/communagir-logo-header.png', 
+                link: 'https://communagir.org/contenus-et-outils/communagir-pour-emporter/les-outils-d-animation/' 
+            }
+        ];
+
+        const bonusCard = { 
+            text: 'ACTIVITÉ BONUS',
+            title: 'Une plateforme VR disponible pour vos projets - Vivre une expérience alimenter par l\'IA',
+            image: 'https://my.uptale.io/Content/Site/uptaleLogo2023.png',
+            link: 'https://my.uptale.io/experience/Launch?id=mQDgqGJPLkqbrDV58Q68OA&lang=fr&playbackMode=Preload' 
+        };
+
+        const nulCard = { text: 'NUL SI DÉCOUVERT' };
+        const uptaleLink = 'https://my.uptale.io/experience/Launch?id=mQDgqGJPLkqbrDV58Q68OA&lang=fr&playbackMode=Preload';
+
+        // ========== FIN DE LA CONFIGURATION ==========
+
+        let scratchedCount = 0;
+        const allLinks = [];
+        const allCanvases = [];
+
+        // Mélanger les cartes aléatoirement
+        function shuffle(array) {
+            const shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        const shuffledCards = shuffle(cardsData);
+
+        // Créer la grille 2x6
+        function createGrid() {
+            const container = document.getElementById('cardContainer');
+            
+            // Colonnes de 6 cartes
+            for (let row = 0; row < 6; row++) {
+                // Colonne 1
+                if (row < 5) {
+                    createCard(shuffledCards[row], container, false);
+                } else {
+                    // Dernière rangée colonne 1 = BONIS (plus large)
+                    createCard(bonusCard, container, true, 'bonus-wide');
+                }
+
+                // Colonne 2
+                if (row < 5) {
+                    createCard(shuffledCards[row + 5], container, false);
+                } else {
+                    // Dernière rangée colonne 2 = NUL SI DÉCOUVERT (plus étroit)
+                    createNulCard(container, 'nul-narrow');
+                }
+            }
+        }
+
+        function createCard(cardData, container, isBonus, extraClass) {
+            const card = document.createElement('div');
+            card.className = 'scratch-card' + (isBonus ? ' special-card' : '') + (extraClass ? ' ' + extraClass : '');
+            
+            const content = document.createElement('div');
+            content.className = 'card-content';
+            
+            // Ajouter l'image
+            const img = document.createElement('img');
+            img.src = cardData.image;
+            img.alt = cardData.title || 'Prize';
+            content.appendChild(img);
+            
+            // Ajouter le titre sous l'image
+            const title = document.createElement('div');
+            title.className = isBonus ? 'bonus-card-title' : 'card-title';
+            title.textContent = cardData.title || '';
+            content.appendChild(title);
+            
+            card.appendChild(content);
+            
+            const canvas = document.createElement('canvas');
+            card.appendChild(canvas);
+            container.appendChild(card);
+
+            if (!isBonus) {
+                allLinks.push(cardData.link);
+            }
+            
+            allCanvases.push(canvas);
+            
+            // Rendre le contenu cliquable pour rouvrir le lien
+            content.addEventListener('click', (e) => {
+                if (canvas.style.display === 'none') {
+                    e.stopPropagation();
+                    window.open(cardData.link, '_blank');
+                }
+            });
+            
+            initScratchCard(canvas, cardData.link, isBonus);
+        }
+
+        function createNulCard(container, extraClass) {
+            const card = document.createElement('div');
+            card.className = 'scratch-card nul-card' + (extraClass ? ' ' + extraClass : '');
+            
+            const content = document.createElement('div');
+            content.className = 'card-content';
+            content.textContent = nulCard.text;
+            
+            card.appendChild(content);
+            container.appendChild(card);
+            
+            card.addEventListener('click', scratchAllCards);
+        }
+
+        function initScratchCard(canvas, link, isBonus) {
+            const ctx = canvas.getContext('2d');
+            let isDrawing = false;
+            let hasOpened = false;
+
+            function resizeCanvas() {
+                const rect = canvas.getBoundingClientRect();
+                canvas.width = rect.width;
+                canvas.height = rect.height;
+                drawScratchSurface();
+            }
+
+            function drawScratchSurface() {
+                // Fond gris
+                ctx.fillStyle = '#8b8b8b';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Ajouter des flocons blancs
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                const numFlakes = 40;
+                for (let i = 0; i < numFlakes; i++) {
+                    const x = Math.random() * canvas.width;
+                    const y = Math.random() * canvas.height;
+                    const size = Math.random() * 3 + 2;
+                    
+                    // Flocon simple (étoile à 6 branches)
+                    ctx.beginPath();
+                    for (let j = 0; j < 6; j++) {
+                        const angle = (Math.PI / 3) * j;
+                        const px = x + Math.cos(angle) * size;
+                        const py = y + Math.sin(angle) * size;
+                        if (j === 0) ctx.moveTo(px, py);
+                        else ctx.lineTo(px, py);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                }
+                
+                // Si c'est la carte BONIS, dessiner le texte sur la surface grattable
+                if (isBonus) {
+                    ctx.globalCompositeOperation = 'source-over';
+                    
+                    // Sauvegarder le contexte pour la rotation
+                    ctx.save();
+                    
+                    // Déplacer au centre et faire une rotation de -3 degrés
+                    ctx.translate(canvas.width / 2, canvas.height / 2);
+                    ctx.rotate(-3 * Math.PI / 180);
+                    
+                    // Configuration du texte - ajuster la taille pour occuper 50% de la largeur
+                    // On commence avec une taille basée sur la hauteur
+                    let fontSize = canvas.height * 0.5;
+                    ctx.font = `bold ${fontSize}px Arial`;
+                    
+                    // Ajuster la taille pour que le texte tienne dans 50% de la largeur
+                    let textWidth = ctx.measureText('ACTIVITÉ BONUS').width;
+                    const targetWidth = canvas.width * 0.5;
+                    if (textWidth > targetWidth) {
+                        fontSize = fontSize * (targetWidth / textWidth);
+                        ctx.font = `bold ${fontSize}px Arial`;
+                    }
+                    
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    
+                    // Texte ACTIVITÉ BONUS sans arrière-plan
+                    ctx.fillStyle = '#fff';
+                    ctx.strokeStyle = '#c41e3a';
+                    ctx.lineWidth = fontSize * 0.06;
+                    ctx.shadowColor = 'rgba(0,0,0,0.9)';
+                    ctx.shadowBlur = 8;
+                    ctx.shadowOffsetX = 3;
+                    ctx.shadowOffsetY = 3;
+                    
+                    // Dessiner le contour et le remplissage
+                    ctx.strokeText('ACTIVITÉ BONUS', 0, 0);
+                    ctx.fillText('ACTIVITÉ BONUS', 0, 0);
+                    
+                    ctx.shadowBlur = 0;
+                    
+                    // Restaurer le contexte
+                    ctx.restore();
+                }
+            }
+
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            function scratch(x, y) {
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.beginPath();
+                // Rayon proportionnel à la hauteur du canvas (environ 1/3 de la hauteur)
+                const radius = canvas.height / 6;
+                ctx.arc(x, y, radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            function getEventPos(e) {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                
+                if (e.touches) {
+                    return {
+                        x: (e.touches[0].clientX - rect.left) * scaleX,
+                        y: (e.touches[0].clientY - rect.top) * scaleY
+                    };
+                }
+                return {
+                    x: (e.clientX - rect.left) * scaleX,
+                    y: (e.clientY - rect.top) * scaleY
+                };
+            }
+
+            function checkScratchPercentage() {
+                if (hasOpened) return;
+                
+                // Vérifier seulement la zone centrale où se trouve le texte (50% central de la carte)
+                const centerX = canvas.width * 0.25;
+                const centerY = canvas.height * 0.25;
+                const centerWidth = canvas.width * 0.5;
+                const centerHeight = canvas.height * 0.5;
+                
+                const imageData = ctx.getImageData(centerX, centerY, centerWidth, centerHeight);
+                const pixels = imageData.data;
+                let transparent = 0;
+                
+                for (let i = 3; i < pixels.length; i += 4) {
+                    if (pixels[i] < 128) transparent++;
+                }
+                
+                const percentage = (transparent / (pixels.length / 4)) * 100;
+                
+                // 60% de la zone centrale du texte grattée
+                if (percentage >= 60) {
+                    hasOpened = true;
+                    scratchedCount++;
+                    canvas.style.display = 'none';
+                    window.open(link, '_blank');
+                }
+            }
+
+            canvas.addEventListener('mousedown', (e) => {
+                isDrawing = true;
+                const pos = getEventPos(e);
+                scratch(pos.x, pos.y);
+            });
+
+            canvas.addEventListener('mousemove', (e) => {
+                if (!isDrawing) return;
+                const pos = getEventPos(e);
+                scratch(pos.x, pos.y);
+            });
+
+            canvas.addEventListener('mouseup', () => {
+                isDrawing = false;
+                checkScratchPercentage();
+            });
+
+            canvas.addEventListener('mouseleave', () => {
+                isDrawing = false;
+            });
+
+            // Touch events
+            canvas.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                isDrawing = true;
+                const pos = getEventPos(e);
+                scratch(pos.x, pos.y);
+            });
+
+            canvas.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                if (!isDrawing) return;
+                const pos = getEventPos(e);
+                scratch(pos.x, pos.y);
+            });
+
+            canvas.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                isDrawing = false;
+                checkScratchPercentage();
+            });
+        }
+
+        function scratchAllCards() {
+            // Faire disparaître tous les canvas pour révéler toutes les images
+            allCanvases.forEach(canvas => {
+                canvas.style.display = 'none';
+            });
+        }
+
+        // Initialiser la grille
+        createGrid();
+    </script>
+</body>
+</html>
